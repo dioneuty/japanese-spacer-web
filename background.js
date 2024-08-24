@@ -25,10 +25,9 @@ chrome.action.onClicked.addListener((tab) => {
 // 탭 업데이트 시 실행되는 이벤트 리스너
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.status === 'complete') {
-    chrome.storage.sync.get('enabled', (data) => {
-      if (data.enabled) {
-        // 페이지 로드 완료 시 content script에 메시지 전송
-        chrome.tabs.sendMessage(tabId, { action: 'checkLanguage' });
+    chrome.storage.sync.get(['autoDisable', 'enabled'], (data) => {
+      if (data.autoDisable && data.enabled) {
+        chrome.tabs.sendMessage(tabId, { action: 'pageChanged' });
       }
     });
   }

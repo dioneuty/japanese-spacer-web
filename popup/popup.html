@@ -14,14 +14,33 @@
     #statusMessage { margin-top: 10px; }
     #progressBarContainer { width: 100%; background-color: #f0f0f0; margin-top: 10px; }
     #progressBar { width: 0%; height: 20px; background-color: #4CAF50; text-align: center; line-height: 20px; color: white; }
+    .option-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .option-label { margin-right: 10px; }
   </style>
 </head>
 <body>
   <h2>일본어 띄어쓰기</h2>
-  <label class="switch">
-    <input type="checkbox" id="toggleSwitch">
-    <span class="slider"></span>
-  </label>
+  <div class="option-row">
+    <span class="option-label">띄어쓰기</span>
+    <label class="switch">
+      <input type="checkbox" id="toggleSwitch">
+      <span class="slider"></span>
+    </label>
+  </div>
+  <div class="option-row">
+    <span class="option-label">후리가나</span>
+    <label class="switch">
+      <input type="checkbox" id="furiganaSwitch">
+      <span class="slider"></span>
+    </label>
+  </div>
+  <div class="option-row">
+    <span class="option-label">페이지 전환 시 자동 비활성화</span>
+    <label class="switch">
+      <input type="checkbox" id="autoDisableSwitch">
+      <span class="slider"></span>
+    </label>
+  </div>
   <div id="statusMessage"></div>
   <div id="progressBarContainer">
     <div id="progressBar"></div>

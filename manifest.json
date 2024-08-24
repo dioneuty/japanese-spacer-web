@@ -3,7 +3,7 @@
   "name": "일본어 띄어쓰기 플러그인",
   "version": "1.0",
   "description": "일본어 웹사이트에 띄어쓰기를 추가하여 가독성을 높입니다.",
-  "permissions": ["activeTab", "storage", "tabs"],
+  "permissions": ["activeTab", "storage", "tabs", "webNavigation"],
   "background": {
     "service_worker": "background.js"
   },
