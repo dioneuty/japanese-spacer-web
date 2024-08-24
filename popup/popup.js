@@ -24,34 +24,21 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
-  // 각 스위치의 이벤트 리스너에서 상태 변경 시 storage 업데이트
-  toggleSwitch.addEventListener('change', function() {
-    const isEnabled = toggleSwitch.checked;
-    chrome.storage.sync.set({enabled: isEnabled}, function() {
+  function handleSwitchChange(switchElement, storageKey, action) {
+    const isEnabled = switchElement.checked;
+    chrome.storage.sync.set({ [storageKey]: isEnabled }, function() {
       chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
         chrome.tabs.sendMessage(tabs[0].id, {
-          action: isEnabled ? 'enableSpacing' : 'disableSpacing'
+          action: action,
+          enabled: isEnabled
         });
       });
     });
-  });
+  }
 
-  furiganaSwitch.addEventListener('change', function() {
-    const isFuriganaEnabled = furiganaSwitch.checked;
-    chrome.storage.sync.set({furiganaEnabled: isFuriganaEnabled}, function() {
-      chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-        chrome.tabs.sendMessage(tabs[0].id, {
-          action: 'toggleFurigana',
-          enabled: isFuriganaEnabled
-        });
-      });
-    });
-  });
-
-  autoDisableSwitch.addEventListener('change', function() {
-    const autoDisable = autoDisableSwitch.checked;
-    chrome.storage.sync.set({autoDisable: autoDisable});
-  });
+  toggleSwitch.addEventListener('change', () => handleSwitchChange(toggleSwitch, 'enabled', 'updateState'));
+  furiganaSwitch.addEventListener('change', () => handleSwitchChange(furiganaSwitch, 'furiganaEnabled', 'toggleFurigana'));
+  autoDisableSwitch.addEventListener('change', () => handleSwitchChange(autoDisableSwitch, 'autoDisable', 'updateAutoDisable'));
 
   // 상태 메시지 및 프로그레스 바 업데이트 리스너
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {

@@ -55,31 +55,20 @@ function initializeKuromoji() {
 }
 
 // 후리가나 추가 함수
-function addFurigana(node) {
-  if (node.nodeType === Node.TEXT_NODE && detectJapanese(node.textContent)) {
-    const text = node.textContent;
-    const tokens = tokenizer.tokenize(text);
-    const fragment = document.createDocumentFragment();
+function addFurigana(node, tokens) {
+  const fragment = document.createDocumentFragment();
 
-    tokens.forEach(token => {
-      if (token.reading !== token.surface_form && /[\u4e00-\u9faf]/.test(token.surface_form)) {
-        const ruby = document.createElement('ruby');
-        const rb = document.createElement('rb');
-        rb.textContent = token.surface_form;
-        ruby.appendChild(rb);
-        const rt = document.createElement('rt');
-        rt.textContent = token.reading;
-        ruby.appendChild(rt);
-        fragment.appendChild(ruby);
-      } else {
-        fragment.appendChild(document.createTextNode(token.surface_form));
-      }
-    });
+  tokens.forEach(token => {
+    if (token.reading !== token.surface_form && /[\u4e00-\u9faf]/.test(token.surface_form)) {
+      const ruby = document.createElement('ruby');
+      ruby.innerHTML = `<rb>${token.surface_form}</rb><rt>${token.reading}</rt>`;
+      fragment.appendChild(ruby);
+    } else {
+      fragment.appendChild(document.createTextNode(token.surface_form));
+    }
+  });
 
-    node.parentNode.replaceChild(fragment, node);
-  } else if (node.nodeType === Node.ELEMENT_NODE) {
-    Array.from(node.childNodes).forEach(addFurigana);
-  }
+  node.parentNode.replaceChild(fragment, node);
 }
 
 // 후리가나 제거 함수
@@ -96,73 +85,64 @@ function removeFurigana(node) {
 
 // 텍스트 노드 처리 함수 개선
 async function processTextNodes(node) {
-  if (node.nodeType === Node.TEXT_NODE) {
-    if (!processedNodes.has(node) && detectJapanese(node.textContent)) {
-      try {
-        // tokenizer가 초기화되지 않았다면 초기화
-        if (!tokenizer) {
-          await initializeKuromoji();
-        }
-        
-        const originalText = node.textContent;
-        originalTextMap.set(node, originalText);  // 원본 텍스트 저장
+  const textNodes = [];
+  const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
 
-        const text = node.textContent;
-        const tokens = tokenizer.tokenize(text);
-        let spacedText = '';
-        let prevToken = null;
-
-        for (let i = 0; i < tokens.length; i++) {
-          const token = tokens[i];
-          const nextToken = i < tokens.length - 1 ? tokens[i + 1] : null;
-          
-          if (i > 0 && shouldAddSpace(prevToken, token, nextToken)) {
-            spacedText += ' ';
-          }
-          spacedText += token.surface_form;
-          prevToken = token;
-        }
-
-        // 문장 부호 주변 띄어쓰기 처리
-        spacedText = spacedText.replace(/ ([、。！？])/g, '$1');
-        spacedText = spacedText.replace(/([「『（）])/g, '$1');
-
-        node.textContent = spacedText;
-        processedNodes.add(node);
-
-        if (isFuriganaEnabled) {
-          addFurigana(node);
-        }
-      } catch (error) {
-        console.error('텍스트 처리 중 오류 발생:', error);
-      }
-    }
-    processedCount++;
-    if (processedCount % 100 === 0) {
-      const percentage = (processedCount / totalNodes * 100).toFixed(2);
-      updateProgress(`처리 중: ${percentage}%`, parseFloat(percentage));
-    }
-  } else if (node.nodeType === Node.ELEMENT_NODE) {
-    for (let child of node.childNodes) {
-      await processTextNodes(child);
+  while (walker.nextNode()) {
+    const textNode = walker.currentNode;
+    if (!processedNodes.has(textNode) && detectJapanese(textNode.textContent)) {
+      textNodes.push(textNode);
     }
   }
+
+  if (textNodes.length === 0) return;
+
+  if (!tokenizer) {
+    await initializeKuromoji();
+  }
+
+  const fragment = document.createDocumentFragment();
+
+  for (const textNode of textNodes) {
+    const originalText = textNode.textContent;
+    const tokens = tokenizer.tokenize(originalText);
+    const spacedText = applySpacing(tokens);
+
+    const newTextNode = document.createTextNode(spacedText);
+    originalTextMap.set(newTextNode, originalText);
+    processedNodes.add(newTextNode);
+
+    if (isFuriganaEnabled) {
+      addFurigana(newTextNode, tokens);
+    } else {
+      textNode.parentNode.replaceChild(newTextNode, textNode);
+    }
+  }
+
+  processedCount += textNodes.length;
+  updateProgress();
 }
 
 // 진행도 표시 함수
-function updateProgress(message, percentage) {
-    chrome.runtime.sendMessage({
-      action: 'updateProgress',
-      message: message,
-      percentage: percentage
-    });
-  }
+function updateProgress() {
+  const percentage = (processedCount / totalNodes * 100).toFixed(2);
+  chrome.runtime.sendMessage({
+    action: 'updateProgress',
+    message: `처리 중: ${percentage}%`,
+    percentage: parseFloat(percentage)
+  });
+}
 
 // 띄어쓰기 제거 함수
 function removeSpacingAndFurigana() {
-  processedNodes.forEach(node => {
+  const nodesToRestore = Array.from(processedNodes);
+  nodesToRestore.forEach(node => {
     if (originalTextMap.has(node)) {
-      node.textContent = originalTextMap.get(node);  // 원본 텍스트로 복원
+      const originalText = originalTextMap.get(node);
+      if (node.parentNode) {
+        const textNode = document.createTextNode(originalText);
+        node.parentNode.replaceChild(textNode, node);
+      }
     }
   });
   originalTextMap = new WeakMap();
@@ -244,13 +224,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 // MutationObserver 설정
 const observer = new MutationObserver((mutations) => {
   if (isEnabled) {
-    mutations.forEach(mutation => {
-      mutation.addedNodes.forEach(node => {
-        if (node.nodeType === Node.ELEMENT_NODE) {
-          processTextNodes(node);
-        }
-      });
-    });
+    const addedNodes = mutations.reduce((acc, mutation) => {
+      return acc.concat(Array.from(mutation.addedNodes));
+    }, []);
+
+    const textNodes = addedNodes.filter(node => node.nodeType === Node.ELEMENT_NODE);
+    textNodes.forEach(processTextNodes);
   }
 });
 
@@ -268,3 +247,21 @@ chrome.storage.sync.get(['enabled', 'furiganaEnabled'], (data) => {
 
 // 초기 상태 요청
 chrome.runtime.sendMessage({action: 'getInitialState'});
+
+function applySpacing(tokens) {
+  let spacedText = '';
+  let prevToken = null;
+
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i];
+    const nextToken = i < tokens.length - 1 ? tokens[i + 1] : null;
+    
+    if (i > 0 && shouldAddSpace(prevToken, token, nextToken)) {
+      spacedText += ' ';
+    }
+    spacedText += token.surface_form;
+    prevToken = token;
+  }
+
+  return spacedText.replace(/ ([、。！？])/g, '$1').replace(/([「『（）])/g, '$1');
+}
