@@ -27,3 +27,24 @@ document.addEventListener('DOMContentLoaded', function() {
         statusText.style.color = isEnabled ? '#2196F3' : '#333';
     }
 });
+
+function sendMessage(message) {
+    return new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage(message, response => {
+            if (chrome.runtime.lastError) {
+                reject(chrome.runtime.lastError);
+            } else {
+                resolve(response);
+            }
+        });
+    });
+}
+
+// 사용 예:
+sendMessage({ action: 'getState' })
+    .then(response => {
+        console.log('Response:', response);
+    })
+    .catch(error => {
+        console.error('Error:', error);
+    });
