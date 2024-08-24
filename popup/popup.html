@@ -1,19 +1,31 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>일본어 띄어쓰기 플러그인</title>
-    <link rel="stylesheet" href="popup.css">
+  <meta charset="UTF-8">
+  <title>일본어 띄어쓰기</title>
+  <style>
+    body { width: 300px; padding: 10px; font-family: Arial, sans-serif; }
+    .switch { position: relative; display: inline-block; width: 60px; height: 34px; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
+    .slider:before { position: absolute; content: ""; height: 26px; width: 26px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+    input:checked + .slider { background-color: #2196F3; }
+    input:checked + .slider:before { transform: translateX(26px); }
+    #statusMessage { margin-top: 10px; }
+    #progressBarContainer { width: 100%; background-color: #f0f0f0; margin-top: 10px; }
+    #progressBar { width: 0%; height: 20px; background-color: #4CAF50; text-align: center; line-height: 20px; color: white; }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <h1>일본어 띄어쓰기</h1>
-        <label class="switch">
-            <input type="checkbox" id="toggleSwitch">
-            <span class="slider round"></span>
-        </label>
-        <p id="status">비활성화</p>
-    </div>
-    <script src="popup.js"></script>
+  <h2>일본어 띄어쓰기</h2>
+  <label class="switch">
+    <input type="checkbox" id="toggleSwitch">
+    <span class="slider"></span>
+  </label>
+  <div id="statusMessage"></div>
+  <div id="progressBarContainer">
+    <div id="progressBar"></div>
+  </div>
+  <script src="popup.js"></script>
 </body>
 </html>
